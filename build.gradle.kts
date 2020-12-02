@@ -1,5 +1,3 @@
-import java.nio.charset.StandardCharsets
-
 plugins {
     java
     `maven-publish`
@@ -29,25 +27,22 @@ val distribution = "1.16.x"
 
 repositories {
     mavenCentral()
-    maven("https://jitpack.io") {
-        name = "Jitpack"
-    }
 }
 
 dependencies {
     // I believe we will need to use this more than once, so we made a configuration for it
-    val modImplementationAndInclude by configurations.register("modImplementationAndInclude")
+    val implementationAndInclude by configurations.register("implementationAndInclude")
 
     minecraft("com.mojang:minecraft:$minecraftVersion")
     mappings("net.fabricmc:yarn:$minecraftVersion+build.$yarnBuild:v2")
     modImplementation("net.fabricmc:fabric-loader:$loaderVersion")
     modImplementation("net.fabricmc:fabric-language-kotlin:$flkVersion")
-    modImplementationAndInclude("com.github.kotlin-graphics:openvr:v1.09c") {
-        exclude(group = "net.java.dev.jna", module = "jna") // Use JNA Minecraft includes
-    }
 
-    add(sourceSets.main.get().getTaskName("mod", JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME), modImplementationAndInclude)
-    add("include", modImplementationAndInclude)
+    // Match MC's LWJGL version
+    implementation("org.lwjgl:lwjgl-openvr:3.2.2")
+
+    add(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, implementationAndInclude)
+    add("include", implementationAndInclude)
 }
 
 // Long-term: Try to make it work on Java 8?
@@ -99,5 +94,11 @@ spotless {
 
         // Regex is `/**` or `package`
         licenseHeaderFile(project.file("HEADER"), "/\\*\\*|package").yearSeparator(", ")
+    }
+}
+
+tasks.compileKotlin {
+    kotlinOptions {
+        jvmTarget = "8"
     }
 }
