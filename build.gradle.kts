@@ -45,11 +45,10 @@ dependencies {
     add("include", implementationAndInclude)
 }
 
-// Long-term: Try to make it work on Java 8?
 tasks.compileJava.configure {
-    val targetVersion = 11
+    val targetVersion = 8
 
-    if (JavaVersion.current().isJava12Compatible) {
+    if (JavaVersion.current().isJava9Compatible) {
         options.release.set(targetVersion)
     }
 }
