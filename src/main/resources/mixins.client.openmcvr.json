@@ -7,5 +7,11 @@
   ],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "mixins": [
+    "GameRendererMixin",
+    "MainMixin",
+    "Matrix4fMixin",
+    "MinecraftClientMixin"
+  ]
 }

@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem
+
 plugins {
     java
     `maven-publish`
@@ -29,6 +31,9 @@ repositories {
     mavenCentral()
 }
 
+val lwjglVersion = "3.2.2"
+val lwjglNatives = "natives-windows"
+
 dependencies {
     // I believe we will need to use this more than once, so we made a configuration for it
     val implementationAndInclude by configurations.register("implementationAndInclude")
@@ -39,7 +44,10 @@ dependencies {
     modImplementation("net.fabricmc:fabric-language-kotlin:$flkVersion")
 
     // Match MC's LWJGL version
-    implementation("org.lwjgl:lwjgl-openvr:3.2.2")
+    implementation("org.lwjgl", "lwjgl", lwjglVersion)
+    implementation("org.lwjgl", "lwjgl-openvr", lwjglVersion)
+    runtimeOnly("org.lwjgl", "lwjgl", lwjglVersion, classifier = lwjglNatives)
+    runtimeOnly("org.lwjgl", "lwjgl-openvr", lwjglVersion, classifier = lwjglNatives)
 
     add(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, implementationAndInclude)
     add("include", implementationAndInclude)
