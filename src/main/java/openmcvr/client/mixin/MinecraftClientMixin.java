@@ -245,13 +245,13 @@ public abstract class MinecraftClientMixin extends ReentrantThreadExecutor<Runna
             this.profiler.pop();
         }
 
-        RenderSystem.popMatrix();
-
         if (this.tickProfilerResult != null) {
             this.profiler.push("fpsPie");
             this.drawProfilerResults(new MatrixStack(), this.tickProfilerResult);
             this.profiler.pop();
         }
+
+        RenderSystem.popMatrix();
 
         this.getFramebuffer().endWrite();
     }

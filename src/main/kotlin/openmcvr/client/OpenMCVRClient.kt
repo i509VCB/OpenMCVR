@@ -23,6 +23,8 @@ import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.Framebuffer
 import net.minecraft.util.math.EulerAngle
 import net.minecraft.util.math.Quaternion
+import openmcvr.client.framebuffer.FramebufferPile
+import openmcvr.client.framebuffer.FramebufferType
 import openmcvr.client.math.*
 import openmcvr.client.player.VRPlayer
 import openmcvr.mixinterface.EyeAlternator
@@ -45,8 +47,8 @@ fun init() {
 fun getFramebufferFromEye(eye: RenderLocation): Framebuffer {
     return when(eye) {
         RenderLocation.CENTER -> (MinecraftClient.getInstance() as EyeAlternator).mcvr_getWindowFramebuffer()
-        RenderLocation.RIGHT -> OpenMCVRClient.rightEyeBuf!!
-        RenderLocation.LEFT -> OpenMCVRClient.leftEyeBuf!!
+        RenderLocation.RIGHT -> OpenMCVRClient.rightEyeBuffers!!.framebuffersByType[FramebufferType.Solid]!!
+        RenderLocation.LEFT -> OpenMCVRClient.leftEyeBuffers!!.framebuffersByType[FramebufferType.Solid]!!
     }
 }
 
@@ -77,8 +79,9 @@ object OpenMCVRClient : ClientModInitializer {
 
     var firstFramePassed = false
 
-    var rightEyeBuf: Framebuffer? = null
-    var leftEyeBuf: Framebuffer? = null
+    var rightEyeBuffers: FramebufferPile? = null
+    var leftEyeBuffers: FramebufferPile? = null
+    var centerBuffers: FramebufferPile? = null
 
     private var headTransform: Matrix4f = Matrix4f().identity()
     private var leftEyeTransform: Matrix4f = Matrix4f().identity()
@@ -88,6 +91,14 @@ object OpenMCVRClient : ClientModInitializer {
     var rightEyeProjection: Matrix4f? = null
 
     var eye: RenderLocation = RenderLocation.CENTER
+
+    fun getFramebufferPile(): FramebufferPile {
+        return when(eye) {
+            RenderLocation.RIGHT -> rightEyeBuffers!!
+            RenderLocation.LEFT -> leftEyeBuffers!!
+            else -> centerBuffers!!
+        }
+    }
 
     fun getFramebuffer(): Framebuffer {
         return getFramebufferFromEye(eye)
@@ -129,8 +140,10 @@ object OpenMCVRClient : ClientModInitializer {
 
     fun onFrame() {
         if(!firstFramePassed) {
-            rightEyeBuf = Framebuffer(2048, 2048, true, true)
-            leftEyeBuf = Framebuffer(2048, 2048, true, true)
+            rightEyeBuffers = FramebufferPile(2048, 2048, useDepth = true, getError = true)
+            leftEyeBuffers = FramebufferPile(2048, 2048, useDepth = true, getError = true)
+            val window = MinecraftClient.getInstance().window
+            centerBuffers = FramebufferPile(window.framebufferWidth, window.framebufferHeight, useDepth = true, getError = true)
         }
         firstFramePassed = true
 

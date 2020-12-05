@@ -17,7 +17,6 @@ import net.minecraft.util.crash.CrashReportSection;
 import net.minecraft.util.math.Matrix4f;
 import openmcvr.client.OpenMCVRClient;
 import openmcvr.client.RenderLocation;
-import openmcvr.client.math.Matrix4fExtensionsKt;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -129,7 +128,7 @@ public abstract class GameRendererMixin {
                 // eye transforms
                 MatrixStack matrix = new MatrixStack();
                 if(OpenMCVRClient.INSTANCE.getEye() != RenderLocation.CENTER) {
-                    Matrix4f transform = (OpenMCVRClient.INSTANCE.getTransform());
+                    Matrix4f transform = (OpenMCVRClient.INSTANCE.getHeadTransform());
                     matrix.peek().getModel().multiply(transform);
                     Matrix4f eyeTransform = (OpenMCVRClient.INSTANCE.getEyeTransform());
                     matrix.peek().getModel().multiply(eyeTransform);
