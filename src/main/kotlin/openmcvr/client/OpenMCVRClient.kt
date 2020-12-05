@@ -24,6 +24,7 @@ import net.minecraft.client.gl.Framebuffer
 import net.minecraft.util.math.EulerAngle
 import net.minecraft.util.math.Quaternion
 import openmcvr.client.math.*
+import openmcvr.client.player.VRPlayer
 import openmcvr.mixinterface.EyeAlternator
 import org.joml.Matrix4f
 import org.lwjgl.BufferUtils
@@ -79,9 +80,9 @@ object OpenMCVRClient : ClientModInitializer {
     var rightEyeBuf: Framebuffer? = null
     var leftEyeBuf: Framebuffer? = null
 
-    var headTransform: Matrix4f? = null
-    var leftEyeTransform: Matrix4f? = null
-    var rightEyeTransform: Matrix4f? = null
+    private var headTransform: Matrix4f = Matrix4f().identity()
+    private var leftEyeTransform: Matrix4f = Matrix4f().identity()
+    private var rightEyeTransform: Matrix4f = Matrix4f().identity()
 
     var leftEyeProjection: Matrix4f? = null
     var rightEyeProjection: Matrix4f? = null
@@ -92,7 +93,10 @@ object OpenMCVRClient : ClientModInitializer {
         return getFramebufferFromEye(eye)
     }
 
-    fun getTransform(): net.minecraft.util.math.Matrix4f {
+    /**
+     * @return A minecraft matrix for the
+     */
+    fun getHeadTransform(): net.minecraft.util.math.Matrix4f {
         return headTransform!!.toMCMatrix()
     }
 
@@ -129,6 +133,9 @@ object OpenMCVRClient : ClientModInitializer {
             leftEyeBuf = Framebuffer(2048, 2048, true, true)
         }
         firstFramePassed = true
+
+        val player = MinecraftClient.getInstance().player
+
         stackPush().use { stack ->
 
             val trackedDevicePose: TrackedDevicePose.Buffer = TrackedDevicePose.Buffer(stack.malloc(k_unMaxTrackedDeviceCount * TrackedDevicePose.SIZEOF))
@@ -139,33 +146,34 @@ object OpenMCVRClient : ClientModInitializer {
 
             val tracking = renderDevicePose.mDeviceToAbsoluteTracking()
 
-            val headView = Matrix4f().setFromOVR43(tracking)
-            headView.invertAffine()
-
-            headTransform = headView
-
-            renderToEye(RenderLocation.LEFT)
-            renderToEye(RenderLocation.RIGHT)
-
-            stackPush().use {
-                leftEyeTransform = Matrix4f().setFromOVR43(
-                        VRSystem_GetEyeToHeadTransform(EVREye_Eye_Left, HmdMatrix34.mallocStack())
-                )
-                rightEyeTransform = Matrix4f().setFromOVR43(
-                        VRSystem_GetEyeToHeadTransform(EVREye_Eye_Right, HmdMatrix34.mallocStack())
-                )
-
-                val farPlane = MinecraftClient.getInstance().gameRenderer.viewDistance * 4.0f
-                leftEyeProjection = Matrix4f().setFromOVR44(
-                        VRSystem_GetProjectionMatrix(EVREye_Eye_Left, 0.05f, farPlane, HmdMatrix44.mallocStack())
-                )
-                rightEyeProjection = Matrix4f().setFromOVR44(
-                        VRSystem_GetProjectionMatrix(EVREye_Eye_Right, 0.05f, farPlane, HmdMatrix44.mallocStack())
-                )
+            headTransform = Matrix4f().setFromOVR43(tracking)
+            headTransform.invertAffine()
+            if(player != null) {
+                VRPlayer.getFromPlayer(player).headTransform = headTransform
             }
-
-            frames++
         }
+
+        renderToEye(RenderLocation.LEFT)
+        renderToEye(RenderLocation.RIGHT)
+
+        stackPush().use {
+            leftEyeTransform = Matrix4f().setFromOVR43(
+                    VRSystem_GetEyeToHeadTransform(EVREye_Eye_Left, HmdMatrix34.mallocStack())
+            )
+            rightEyeTransform = Matrix4f().setFromOVR43(
+                    VRSystem_GetEyeToHeadTransform(EVREye_Eye_Right, HmdMatrix34.mallocStack())
+            )
+
+            val farPlane = MinecraftClient.getInstance().gameRenderer.viewDistance * 4.0f
+            leftEyeProjection = Matrix4f().setFromOVR44(
+                    VRSystem_GetProjectionMatrix(EVREye_Eye_Left, 0.05f, farPlane, HmdMatrix44.mallocStack())
+            )
+            rightEyeProjection = Matrix4f().setFromOVR44(
+                    VRSystem_GetProjectionMatrix(EVREye_Eye_Right, 0.05f, farPlane, HmdMatrix44.mallocStack())
+            )
+        }
+
+        frames++
     }
 
     fun renderToEye(eye: RenderLocation) {

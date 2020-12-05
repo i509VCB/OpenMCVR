@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(PlayerEntity.class)
 public class PlayerMixin implements HasVRPlayer {
-    private VRPlayer openmcvr_vrplayer;
+    private final VRPlayer openmcvr_vrplayer = new VRPlayer();
 
     @Override
     public VRPlayer getVRPlayer() {
