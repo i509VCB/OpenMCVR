@@ -29,6 +29,7 @@ val distribution = "1.16.x"
 
 repositories {
     mavenCentral()
+    maven(url="https://oss.sonatype.org/content/repositories/snapshots/")
 }
 
 val lwjglVersion = "3.2.2"
@@ -48,6 +49,8 @@ dependencies {
     implementation("org.lwjgl", "lwjgl-openvr", lwjglVersion)
     runtimeOnly("org.lwjgl", "lwjgl", lwjglVersion, classifier = lwjglNatives)
     runtimeOnly("org.lwjgl", "lwjgl-openvr", lwjglVersion, classifier = lwjglNatives)
+
+    implementation("org.joml:joml:1.9.25")
 
     add(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, implementationAndInclude)
     add("include", implementationAndInclude)

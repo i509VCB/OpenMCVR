@@ -10,8 +10,10 @@
   },
   "mixins": [
     "GameRendererMixin",
+    "HudMixin",
     "MainMixin",
     "Matrix4fMixin",
-    "MinecraftClientMixin"
+    "MinecraftClientMixin",
+    "PlayerMixin"
   ]
 }

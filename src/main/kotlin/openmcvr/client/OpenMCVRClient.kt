@@ -21,15 +21,16 @@ import net.fabricmc.api.EnvType
 import net.fabricmc.api.Environment
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.Framebuffer
-import net.minecraft.client.render.Camera
-import net.minecraft.client.util.math.MatrixStack
-import net.minecraft.util.math.Matrix4f
-import openmcvr.mixinterface.OVRCompatMatrix4f
+import net.minecraft.util.math.EulerAngle
+import net.minecraft.util.math.Quaternion
+import openmcvr.client.math.*
+import openmcvr.mixinterface.EyeAlternator
+import org.joml.Matrix4f
 import org.lwjgl.BufferUtils
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
+import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
-import java.nio.IntBuffer
 
 fun init() {
     var token: Int? = null
@@ -40,35 +41,94 @@ fun init() {
     OpenVR.create(token!!)
 }
 
+fun getFramebufferFromEye(eye: RenderLocation): Framebuffer {
+    return when(eye) {
+        RenderLocation.CENTER -> (MinecraftClient.getInstance() as EyeAlternator).mcvr_getWindowFramebuffer()
+        RenderLocation.RIGHT -> OpenMCVRClient.rightEyeBuf!!
+        RenderLocation.LEFT -> OpenMCVRClient.leftEyeBuf!!
+    }
+}
+
+fun toQuaternion(euler: EulerAngle): Quaternion{
+    val c1 = Math.cos(euler.yaw / 2.0).toFloat()
+    val s1 = Math.sin(euler.yaw / 2.0).toFloat()
+    val c2 = Math.cos(euler.pitch / 2.0).toFloat()
+    val s2 = Math.sin(euler.pitch / 2.0).toFloat()
+    val c3 = Math.cos(euler.roll / 2.0).toFloat()
+    val s3 = Math.sin(euler.roll / 2.0).toFloat()
+    val c1c2 = c1 * c2
+    val s1s2 = s1 * s2
+
+    return Quaternion(c1c2*c3 - s1s2*s3, c1c2*s3 + s1s2*c3, s1*c2*c3 + c1*s2*s3, c1*s2*c3 - s1*c2*s3)
+}
+
+fun safeAngle(angle: Float): Float {
+    return Math.round(angle * 10f) / 10f
+}
+
 @Environment(EnvType.CLIENT)
 object OpenMCVRClient : ClientModInitializer {
     override fun onInitializeClient() {
 
     }
 
-    val singleIntBuffer: IntBuffer = IntBuffer.allocate(1)
+    val fPI = Math.PI.toFloat()
+
     var firstFramePassed = false
 
     var rightEyeBuf: Framebuffer? = null
     var leftEyeBuf: Framebuffer? = null
 
-    var rightEyeCamera: Camera? = null
-    var leftEyeCamera: Camera? = null
+    var headTransform: Matrix4f? = null
+    var leftEyeTransform: Matrix4f? = null
+    var rightEyeTransform: Matrix4f? = null
+
+    var leftEyeProjection: Matrix4f? = null
+    var rightEyeProjection: Matrix4f? = null
+
+    var eye: RenderLocation = RenderLocation.CENTER
+
+    fun getFramebuffer(): Framebuffer {
+        return getFramebufferFromEye(eye)
+    }
+
+    fun getTransform(): net.minecraft.util.math.Matrix4f {
+        return headTransform!!.toMCMatrix()
+    }
+
+    fun getEyeTransform(): net.minecraft.util.math.Matrix4f {
+        return when(eye) {
+            RenderLocation.CENTER -> Matrix4f().identity().toMCMatrix()
+            RenderLocation.RIGHT -> rightEyeTransform!!.toMCMatrix()
+            RenderLocation.LEFT -> leftEyeTransform!!.toMCMatrix()
+        }
+    }
+
+    fun getEyeProjection(): net.minecraft.util.math.Matrix4f {
+        return when(eye) {
+            RenderLocation.CENTER -> Matrix4f().identity().toMCMatrix()
+            RenderLocation.RIGHT -> rightEyeProjection!!.toMCMatrix()
+            RenderLocation.LEFT -> leftEyeProjection!!.toMCMatrix()
+        }
+    }
+
+    fun setRenderLocation(eye: RenderLocation) {
+        this.eye = eye;
+    }
 
     fun cleanup() {
         OpenVR.destroy()
         VR_ShutdownInternal()
     }
 
+    var frames = 0
+
     fun onFrame() {
-        /*if(!firstFramePassed) {
+        if(!firstFramePassed) {
             rightEyeBuf = Framebuffer(2048, 2048, true, true)
             leftEyeBuf = Framebuffer(2048, 2048, true, true)
-
-            rightEyeCamera = Camera()
-            leftEyeCamera = Camera()
         }
-        firstFramePassed = true*/
+        firstFramePassed = true
         stackPush().use { stack ->
 
             val trackedDevicePose: TrackedDevicePose.Buffer = TrackedDevicePose.Buffer(stack.malloc(k_unMaxTrackedDeviceCount * TrackedDevicePose.SIZEOF))
@@ -77,27 +137,57 @@ object OpenMCVRClient : ClientModInitializer {
 
             renderDevicePose.mDeviceToAbsoluteTracking()
 
-            /*val unfriendlyTracking = renderDevicePose.mDeviceToAbsoluteTracking()
+            val tracking = renderDevicePose.mDeviceToAbsoluteTracking()
 
-            val headView = (Matrix4f() as OVRCompatMatrix4f).setFromOVR43(unfriendlyTracking)
-            headView.invert()*/
+            val headView = Matrix4f().setFromOVR43(tracking)
+            headView.invertAffine()
 
-            val framebuffer = MinecraftClient.getInstance().framebuffer
+            headTransform = headView
 
-            val buffer = BufferUtils.createByteBuffer(Texture.SIZEOF)
+            renderToEye(RenderLocation.LEFT)
+            renderToEye(RenderLocation.RIGHT)
 
-            val textureObj = Texture(buffer)
+            stackPush().use {
+                leftEyeTransform = Matrix4f().setFromOVR43(
+                        VRSystem_GetEyeToHeadTransform(EVREye_Eye_Left, HmdMatrix34.mallocStack())
+                )
+                rightEyeTransform = Matrix4f().setFromOVR43(
+                        VRSystem_GetEyeToHeadTransform(EVREye_Eye_Right, HmdMatrix34.mallocStack())
+                )
 
-            framebuffer.beginRead()
-            textureObj.set(framebuffer.colorAttachment.toLong(), ETextureType_TextureType_OpenGL, EColorSpace_ColorSpace_Gamma)
-            textureObj.eType(ETextureType_TextureType_OpenGL)
-            textureObj.eColorSpace(EColorSpace_ColorSpace_Gamma)
+                val farPlane = MinecraftClient.getInstance().gameRenderer.viewDistance * 4.0f
+                leftEyeProjection = Matrix4f().setFromOVR44(
+                        VRSystem_GetProjectionMatrix(EVREye_Eye_Left, 0.05f, farPlane, HmdMatrix44.mallocStack())
+                )
+                rightEyeProjection = Matrix4f().setFromOVR44(
+                        VRSystem_GetProjectionMatrix(EVREye_Eye_Right, 0.05f, farPlane, HmdMatrix44.mallocStack())
+                )
+            }
 
-            VRCompositor.VRCompositor_Submit(EVREye_Eye_Left, textureObj, null, EVRSubmitFlags_Submit_Default)
-            VRCompositor.VRCompositor_Submit(EVREye_Eye_Right, textureObj, null, EVRSubmitFlags_Submit_Default)
-
-            VRCompositor.VRCompositor_PostPresentHandoff()
-            framebuffer.endRead()
+            frames++
         }
+    }
+
+    fun renderToEye(eye: RenderLocation) {
+        val framebuffer = getFramebufferFromEye(eye);
+        val buffer = BufferUtils.createByteBuffer(Texture.SIZEOF)
+
+        val textureObj = Texture(buffer)
+
+        framebuffer.beginRead()
+        textureObj.set(framebuffer.colorAttachment.toLong(), ETextureType_TextureType_OpenGL, EColorSpace_ColorSpace_Gamma)
+        textureObj.eType(ETextureType_TextureType_OpenGL)
+        textureObj.eColorSpace(EColorSpace_ColorSpace_Gamma)
+
+        val ovrEye = when(eye) {
+            RenderLocation.RIGHT -> EVREye_Eye_Right
+            RenderLocation.LEFT -> EVREye_Eye_Left
+            RenderLocation.CENTER -> -1
+        }
+        VRCompositor.VRCompositor_Submit(ovrEye, textureObj, null, EVRSubmitFlags_Submit_Default)
+
+        VRCompositor.VRCompositor_PostPresentHandoff()
+        framebuffer.endRead()
+
     }
 }
