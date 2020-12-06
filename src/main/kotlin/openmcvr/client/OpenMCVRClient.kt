@@ -29,6 +29,8 @@ import openmcvr.client.math.*
 import openmcvr.client.player.VRPlayer
 import openmcvr.mixinterface.EyeAlternator
 import org.joml.Matrix4f
+import org.joml.Quaternionf
+import org.joml.Vector3f
 import org.lwjgl.BufferUtils
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
@@ -162,7 +164,12 @@ object OpenMCVRClient : ClientModInitializer {
             headTransform = Matrix4f().setFromOVR43(tracking)
             headTransform.invertAffine()
             if(player != null) {
-                VRPlayer.getFromPlayer(player).headTransform = headTransform
+                val vrPlayer = VRPlayer.getFromPlayer(player)
+                vrPlayer.headTransform = headTransform
+                vrPlayer.rotation = Matrix4f(headTransform).invert().getNormalizedRotation(Quaternionf())
+
+                if(frames % 2 == 0)
+                    MinecraftClient.getInstance().worldRenderer.scheduleTerrainUpdate()
             }
         }
 
