@@ -3,12 +3,14 @@
   "minVersion": "0.8",
   "package": "openmcvr.client.mixin",
   "compatibilityLevel": "JAVA_8",
+  "mixinPriority": 1,
   "client": [
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "mixins": [
+    "CameraMixin",
     "GameRendererMixin",
     "HudMixin",
     "MainMixin",
