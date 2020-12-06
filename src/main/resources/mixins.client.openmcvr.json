@@ -16,7 +16,6 @@
     "MainMixin",
     "Matrix4fMixin",
     "MinecraftClientMixin",
-    "PlayerMixin",
     "ShaderEffectMixin"
   ]
 }
