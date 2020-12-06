@@ -29,9 +29,6 @@ public class ForwardingFramebuffer extends Framebuffer {
             Objects.requireNonNull(OpenMCVRClient.INSTANCE.getLeftEyeBuffers()).getFramebuffersByType().values().forEach(val -> {
                 val.resize(width, height, getError);
             });
-            Objects.requireNonNull(OpenMCVRClient.INSTANCE.getCenterBuffers()).getFramebuffersByType().values().forEach(val -> {
-                val.resize(width, height, getError);
-            });
         } else {
             getForwardingTarget().resize(width, height, getError);
         }
