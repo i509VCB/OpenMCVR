@@ -21,19 +21,19 @@ import net.fabricmc.api.EnvType
 import net.fabricmc.api.Environment
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.gl.Framebuffer
-import net.minecraft.util.math.EulerAngle
-import net.minecraft.util.math.Quaternion
 import openmcvr.client.framebuffer.FramebufferPile
 import openmcvr.client.framebuffer.FramebufferType
-import openmcvr.client.math.*
+import openmcvr.client.math.setFromOVR43
+import openmcvr.client.math.setFromOVR44
+import openmcvr.client.math.toMCMatrix
 import openmcvr.client.player.ClientVRPlayerEntity
 import openmcvr.mixinterface.EyeAlternator
 import org.joml.Matrix4f
-import org.joml.Quaternionf
 import org.lwjgl.BufferUtils
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
-import org.lwjgl.openvr.VRSystem.*
+import org.lwjgl.openvr.VRSystem.VRSystem_GetEyeToHeadTransform
+import org.lwjgl.openvr.VRSystem.VRSystem_GetProjectionMatrix
 import org.lwjgl.system.MemoryStack.stackPush
 
 fun init() {
@@ -53,30 +53,11 @@ fun getFramebufferFromEye(eye: RenderLocation): Framebuffer {
     }
 }
 
-fun toQuaternion(euler: EulerAngle): Quaternion{
-    val c1 = Math.cos(euler.yaw / 2.0).toFloat()
-    val s1 = Math.sin(euler.yaw / 2.0).toFloat()
-    val c2 = Math.cos(euler.pitch / 2.0).toFloat()
-    val s2 = Math.sin(euler.pitch / 2.0).toFloat()
-    val c3 = Math.cos(euler.roll / 2.0).toFloat()
-    val s3 = Math.sin(euler.roll / 2.0).toFloat()
-    val c1c2 = c1 * c2
-    val s1s2 = s1 * s2
-
-    return Quaternion(c1c2*c3 - s1s2*s3, c1c2*s3 + s1s2*c3, s1*c2*c3 + c1*s2*s3, c1*s2*c3 - s1*c2*s3)
-}
-
-fun safeAngle(angle: Float): Float {
-    return Math.round(angle * 10f) / 10f
-}
-
 @Environment(EnvType.CLIENT)
 object OpenMCVRClient : ClientModInitializer {
     override fun onInitializeClient() {
 
     }
-
-    val fPI = Math.PI.toFloat()
 
     var firstFramePassed = false
 
@@ -109,14 +90,14 @@ object OpenMCVRClient : ClientModInitializer {
      * @return A minecraft matrix for the
      */
     fun getHeadTransform(): net.minecraft.util.math.Matrix4f {
-        return headTransform!!.toMCMatrix()
+        return headTransform.toMCMatrix()
     }
 
     fun getEyeTransform(): net.minecraft.util.math.Matrix4f {
         return when(eye) {
             RenderLocation.CENTER -> Matrix4f().identity().toMCMatrix()
-            RenderLocation.RIGHT -> rightEyeTransform!!.toMCMatrix()
-            RenderLocation.LEFT -> leftEyeTransform!!.toMCMatrix()
+            RenderLocation.RIGHT -> rightEyeTransform.toMCMatrix()
+            RenderLocation.LEFT -> leftEyeTransform.toMCMatrix()
         }
     }
 
@@ -129,7 +110,7 @@ object OpenMCVRClient : ClientModInitializer {
     }
 
     fun setRenderLocation(eye: RenderLocation) {
-        this.eye = eye;
+        this.eye = eye
     }
 
     fun cleanup() {
@@ -164,8 +145,7 @@ object OpenMCVRClient : ClientModInitializer {
             headTransform.invertAffine()
             if(player != null) {
                 val vrPlayer = player as ClientVRPlayerEntity
-                vrPlayer.headTransform = headTransform
-                vrPlayer.rotation = Matrix4f(headTransform).invert().getNormalizedRotation(Quaternionf())
+                vrPlayer.updateHead(headTransform)
 
                 if(frames % 2 == 0)
                     MinecraftClient.getInstance().worldRenderer.scheduleTerrainUpdate()
@@ -196,7 +176,7 @@ object OpenMCVRClient : ClientModInitializer {
     }
 
     fun renderToEye(eye: RenderLocation) {
-        val framebuffer = getFramebufferFromEye(eye);
+        val framebuffer = getFramebufferFromEye(eye)
         val buffer = BufferUtils.createByteBuffer(Texture.SIZEOF)
 
         val textureObj = Texture(buffer)
