@@ -29,6 +29,7 @@ import openmcvr.client.math.toMCMatrix
 import openmcvr.client.player.ClientVRPlayerEntity
 import openmcvr.mixinterface.EyeAlternator
 import org.joml.Matrix4f
+import org.joml.Quaternionf
 import org.lwjgl.BufferUtils
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
@@ -90,7 +91,8 @@ object OpenMCVRClient : ClientModInitializer {
      * @return A minecraft matrix for the
      */
     fun getHeadTransform(): net.minecraft.util.math.Matrix4f {
-        return headTransform.toMCMatrix()
+        val rotation = headTransform.getNormalizedRotation(Quaternionf())
+        return Matrix4f().rotate(rotation).toMCMatrix()
     }
 
     fun getEyeTransform(): net.minecraft.util.math.Matrix4f {
